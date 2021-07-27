@@ -1,0 +1,441 @@
+﻿AppType=JavaFX
+Build1=Default,b4j.example
+File1=1.bjl
+FileGroup1=Default Group
+Group=Default Group
+Library1=jcore
+Library2=jfx
+Library3=jnetwork
+Library4=jrandomaccessfile
+Module1=class_printer
+NumberOfFiles=1
+NumberOfLibraries=4
+NumberOfModules=1
+Version=9.1
+@EndOfDesignText@
+#Region Project Attributes 
+	#MainFormWidth: 600
+	#MainFormHeight: 500 
+#End Region
+
+Sub Process_Globals
+	Private fx As JFX
+	Private MainForm As Form
+	'Private ser As B4XSerializator
+	Type MyMessage (Name As String, Age As Int, Image() As Byte)
+	Private btnSend As Button
+	Private btnConnect As Button
+	'Private connected As Boolean
+	'Private client As Socket
+	Dim C4 As Socket
+	Public server As ServerSocket
+	Private astream As AsyncStreams
+	'Private const PORT As Int = 5500
+	'Private working As Boolean = True
+	Private lblStatus As Label
+	Private lblMyIp As Label
+	Private edtName As TextField
+	Private edtAge As TextField
+	Private edtIP As TextField
+	Private cvs As Canvas
+	Private TextArea1 As TextArea
+	Private Button1 As Button
+	'Private Button2 As Button
+	Private TextArea2 As TextArea
+	Private TextArea3 As TextArea
+	'Private Button3 As Button
+	Private btn_03 As Button
+	Private btn_04 As Button
+End Sub
+
+Sub AppStart (Form1 As Form, Args() As String)
+	MainForm = Form1
+	MainForm.RootPane.LoadLayout("1") 'Load the layout file.
+	MainForm.Show
+
+
+End Sub
+
+
+
+
+Sub AStream_Error
+	'UpdateState(False)
+End Sub
+
+Sub AStream_Terminated
+	'UpdateState(False)
+End Sub
+
+
+
+
+
+
+
+Private Sub Button1_Click
+
+	Dim obj As class_printer
+	
+	 
+	TextArea2.Text = ""	&CRLF
+	
+	'初始化&連線
+	obj.Initialize
+	Wait For (obj.Open("192.168.1.31",9100)) Complete (Result1 As Int)
+	Log("open result: " & Result1)
+		
+ 
+	'取得印表機狀態	
+	wait for (obj.PrinterStatus( ))	 Complete (Result2 As String)
+	Log("PrinterStatus result: " & Result2)
+		
+	'TextArea2.Text = TextArea2.Text & Result2	&CRLF
+	
+	If(Result2.Length>0)Then
+		Log("error,中斷執行")
+		
+		TextArea2.Text = "錯誤訊息:"	&CRLF
+		TextArea2.Text = TextArea2.Text & Result2	&CRLF
+		
+		'用完要關閉
+		obj.Close
+		
+		Return 
+	End If
+	
+	
+	
+	'送資料到印表機	
+	Dim ESC As String
+	Dim GS As String
+	Dim FF As String
+	Dim DLE As String
+	
+	Dim SendMsg="" As String
+	
+	ESC=Chr(0X1b)
+	GS=Chr(0X1d)
+	FF=Chr(0X0c)
+	DLE=Chr(0x10)
+ 	
+ 
+	
+	
+	SendMsg = ""
+
+	SendMsg = ""
+	'SendMsg = SendMsg & Chr(0X18)  'CAN 刪除數據
+	SendMsg = SendMsg & ESC & "@"  '初始化打印機
+		
+	SendMsg = SendMsg & "test測試1" &CRLF
+	SendMsg = SendMsg & "test測試2" &CRLF
+	SendMsg = SendMsg & "test測試3" &CRLF
+	SendMsg = SendMsg & "test測試4" &CRLF
+	SendMsg = SendMsg & "test測試5" &CRLF
+	
+	SendMsg = SendMsg & ESC & "d" &  Chr(5)   '打印並進紙 n 行
+	SendMsg = SendMsg & GS & "V" & Chr(65) & Chr(0)   'Partial cut receipt paper
+	
+	
+	wait for (obj.Send( SendMsg ))	 Complete (Result3 As Int)
+	Log("send result: " & Result3)
+		
+	'用完要關閉	
+	obj.Close	
+End Sub
+
+
+
+Sub C4_Connected (Successful As Boolean)
+	Log(Successful)
+	If Successful Then
+
+		astream.Initialize(C4.InputStream, C4.OutputStream, "aStream")
+				
+		CallSub(Null, uf_prints4)
+
+	Else
+		Log("Failed to connect: " )
+		'ToastMessageShow( "印表機連線不成功??請先檢查印表機", True)
+	End If
+End Sub
+
+Sub uf_prints4
+	
+	
+	
+	Dim ESC As String
+	Dim GS As String
+	Dim FF As String
+	Dim DLE As String
+	
+	Dim SendMsg="" As String
+	
+	ESC=Chr(0X1b)
+	GS=Chr(0X1d)
+	FF=Chr(0X0c)
+	DLE=Chr(0x10)
+ 	
+ 
+	
+	
+	SendMsg = ""
+
+	SendMsg = SendMsg & DLE & Chr(0x04) &  Chr(TextArea3.Text )
+	astream.Write(SendMsg.GetBytes("UTF8"))
+	
+	
+	
+End Sub
+
+
+Sub AStream_NewData (Buffer() As Byte)
+ 
+
+	TextArea1.Text =""
+	TextArea1.Text = String2Binary( BytesToString(Buffer, 0 , Buffer.Length, "UTF8"))
+	
+	Dim lc_str As String
+	Dim lc_s1 As String
+	lc_str= TextArea1.Text
+	
+	
+	'TextArea2.Text = "錯誤訊息:"	&CRLF
+	
+	If(TextArea3.Text == "1") Then
+		
+		For i=0 To lc_str.Length -1
+		
+			lc_s1 = lc_str.CharAt(7-i)
+		
+			Select i
+				Case  0
+					'無錯誤訊息
+				Case  1
+					'無錯誤訊息
+				Case  2
+					If (lc_s1 == "1" ) Then
+						TextArea2.Text = TextArea2.Text & lc_s1 & "錢箱PIN3信號為高"	&CRLF
+					End If
+				
+				Case  3
+					If (lc_s1 == "1" ) Then
+						TextArea2.Text = TextArea2.Text & lc_s1 & "打印機離線"	&CRLF
+					End If
+				
+				Case  4
+					'無錯誤訊息
+				Case  5
+					'無錯誤訊息
+				
+				Case  6
+					'無錯誤訊息
+				
+				Case  7
+					'無錯誤訊息
+				
+			End Select
+	
+			
+		Next
+	
+	End If
+	
+	
+	If(TextArea3.Text == "2") Then
+		
+		For i=0 To lc_str.Length -1
+		
+			lc_s1 = lc_str.CharAt(7-i)
+		
+			Select i
+				Case  0
+					'無錯誤訊息
+				Case  1
+					'無錯誤訊息
+				Case  2
+					If (lc_s1 == "1" ) Then
+						TextArea2.Text = TextArea2.Text & lc_s1 & "上蓋打開"	&CRLF
+					End If
+				
+				Case  3
+					If (lc_s1 == "1" ) Then
+						TextArea2.Text = TextArea2.Text & lc_s1 & "按下FEED"	&CRLF
+					End If
+				
+				Case  4
+					'無錯誤訊息
+				Case  5
+					If (lc_s1 == "1" ) Then
+						TextArea2.Text = TextArea2.Text & lc_s1 & "沒有紙,停止打印"	&CRLF
+					End If
+				
+				Case  6
+					If (lc_s1 == "1" ) Then
+						TextArea2.Text = TextArea2.Text & lc_s1 & "打印機錯誤"	&CRLF
+					End If
+				
+				Case  7
+					'無錯誤訊息
+				
+			End Select
+	
+			
+		Next
+	
+	End If
+	If(TextArea3.Text == "3") Then
+		
+		For i=0 To lc_str.Length -1
+		
+			lc_s1 = lc_str.CharAt(7-i)
+		
+			Select i
+				Case  0
+					'無錯誤訊息
+				Case  1
+					'無錯誤訊息
+				Case  2
+					'無錯誤訊息
+				
+				Case  3
+					If (lc_s1 == "1" ) Then
+						TextArea2.Text = TextArea2.Text & lc_s1 & "切刀錯誤"	&CRLF
+					End If
+				
+				Case  4
+					'無錯誤訊息
+				Case  5
+					If (lc_s1 == "1" ) Then
+						TextArea2.Text = TextArea2.Text & lc_s1 & "有不可恢復錯誤"	&CRLF
+					End If
+				
+				Case  6
+					If (lc_s1 == "1" ) Then
+						TextArea2.Text = TextArea2.Text & lc_s1 & "有自動恢復錯誤"	&CRLF
+					End If
+				
+				Case  7
+					'無錯誤訊息
+				
+			End Select
+	
+			
+		Next
+	
+	End If
+		
+	If(TextArea3.Text == "4") Then
+		
+		For i=0 To lc_str.Length -1
+		
+			lc_s1 = lc_str.CharAt(7-i)
+		
+			Select i
+				Case  0
+					'無錯誤訊息
+				Case  1
+					'無錯誤訊息
+				Case  2 , 3
+					If (lc_s1 == "1" ) Then
+						TextArea2.Text = TextArea2.Text & lc_s1 & "紙將盡"	&CRLF
+					End If
+				
+				Case  4
+					'無錯誤訊息
+				Case  5 , 6
+					If (lc_s1 == "1" ) Then
+						TextArea2.Text = TextArea2.Text & lc_s1 & "紙不存在"	&CRLF
+					End If
+
+				
+				Case  7
+					'無錯誤訊息
+				
+			End Select
+	
+			
+		Next
+	
+	End If
+			
+		
+
+	
+
+
+End Sub
+
+Sub String2Binary(txt As String) As String
+	Dim res As String = ""
+	For Each b As Byte In txt.GetBytes("UTF8")
+		Dim sb As StringBuilder
+		sb.Initialize
+		Dim x As Int = Bit.ShiftLeft(1, 31)
+		For i = 0 To 31
+			Dim ii As Int = Bit.And(Bit.And(0xff, b), x)
+			If ii <> 0 Then    sb.Append("1") Else    sb.Append("0")
+			x = Bit.UnsignedShiftRight(x, 1)
+		Next
+		res = res & NumberFormat2(sb.ToString, 8, 0, 0, False)' & " "
+	Next
+	Return res
+End Sub
+
+
+Private Sub btn_01_Click
+	
+	TextArea2.Text = "錯誤訊息:"	&CRLF
+	TextArea3.Text = "1"
+	
+	C4.close
+	astream.Close
+	
+	'印表機連線
+	C4.Initialize("C4")
+	C4.Connect("192.168.1.31" , 9100 , 0) '100=Printer address, 9100=Port number (please look up port number)
+	
+End Sub
+
+Private Sub btn_02_Click
+
+	TextArea2.Text = "錯誤訊息:"	&CRLF
+	TextArea3.Text = "2"
+	
+	C4.close
+	astream.Close
+	
+	'印表機先連線
+	C4.Initialize("C4")
+	C4.Connect("192.168.1.31" , 9100 , 0) '100=Printer address, 9100=Port number (please look up port number)
+	
+End Sub
+
+Private Sub btn_03_Click
+	
+	TextArea2.Text = "錯誤訊息:"	&CRLF
+	TextArea3.Text = "3"
+	
+	C4.close
+	astream.Close
+	
+	'印表機先連線
+	C4.Initialize("C4")
+	C4.Connect("192.168.1.31" , 9100 , 0) '100=Printer address, 9100=Port number (please look up port number)
+	
+End Sub
+
+Private Sub btn_04_Click
+	
+	TextArea2.Text = "錯誤訊息:"	&CRLF
+	TextArea3.Text = "4"
+	
+	C4.close
+	astream.Close
+	
+	'印表機先連線
+	C4.Initialize("C4")
+	C4.Connect("192.168.1.31" , 9100 , 0) '100=Printer address, 9100=Port number (please look up port number)
+	
+End Sub
